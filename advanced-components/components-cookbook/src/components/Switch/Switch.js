@@ -1,19 +1,20 @@
-import PropTypes from 'prop-types';
-import React from 'react';
-import ReactDOM from 'react-dom';
+import PropTypes from "prop-types";
+import React from "react";
+import ReactDOM from "react-dom";
 
-import { default as Switch1 } from './steps/Switch1';
-import { default as Switch2 } from './steps/Switch2';
-import { default as Switch3 } from './steps/Switch3';
-import { default as Switch4 } from './steps/Switch4';
-import { default as Switch5 } from './steps/Switch5';
-import { default as Switch6 } from './steps/Switch6';
+import { default as Switch1 } from "./steps/Switch1";
+import { default as Switch2 } from "./steps/Switch2";
+import { default as Switch3 } from "./steps/Switch3";
+import { default as Switch4 } from "./steps/Switch4";
+import { default as Switch5 } from "./steps/Switch5";
+import { default as Switch6 } from "./steps/Switch6";
+import { default as Switch0 } from "./steps/Switch0";
 
 // import ActiveSpan from '../ActiveSpan/ActiveSpan';
 // import styles from './Switch.css';
 
-const CREDITCARD = 'Creditcard';
-const BTC = 'Bitcoin';
+const CREDITCARD = "Creditcard";
+const BTC = "Bitcoin";
 
 class Switch extends React.Component {
   // getInitialState() {
@@ -60,12 +61,13 @@ class Switch extends React.Component {
 
     return (
       <div>
-        {presentStep('Switch1', Switch1)}
-        {presentStep('Switch2', Switch2)}
-        {presentStep('Switch3', Switch3)}
-        {presentStep('Switch4', Switch4)}
-        {presentStep('Switch5', Switch5)}
-        {presentStep('Switch6', Switch6)}
+        {presentStep("Switch1", Switch1)}
+        {presentStep("Switch2", Switch2)}
+        {presentStep("Switch3", Switch3)}
+        {presentStep("Switch4", Switch4)}
+        {presentStep("Switch5", Switch5)}
+        {presentStep("Switch6", Switch6)}
+        {presentStep("Switch0", Switch0)}
       </div>
     );
   }
