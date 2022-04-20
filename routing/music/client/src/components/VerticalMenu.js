@@ -1,13 +1,21 @@
-import React from 'react';
+import React from "react";
 
-import '../styles/VerticalMenu.css';
+import { NavLink } from "react-router-dom";
 
-const VerticalMenu = ({ albums }) => (
-  <div className='ui secondary vertical menu'>
-    <div className='header item'>
-      Albums
-    </div>
-    {/* Render album menu here */}
+import "../styles/VerticalMenu.css";
+
+const VerticalMenu = ({ albums, albumsPathname }) => (
+  <div className="ui secondary vertical menu">
+    <div className="header item">Albums</div>
+    {albums.map((album) => (
+      <NavLink
+        to={`${albumsPathname}/${album.id}`}
+        className="item"
+        key={album.id}
+      >
+        {album.name}
+      </NavLink>
+    ))}
   </div>
 );
 
