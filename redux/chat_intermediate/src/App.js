@@ -1,73 +1,80 @@
 import React from "react";
-import { createStore } from "redux";
+import { createStore, combineReducers } from "redux";
 import uuid from "uuid";
 
-function reducer(state, action) {
+const reducer = combineReducers({
+  activeThreadId: activeThreadIdReducer,
+  threads: threadsReducer,
+});
+
+function activeThreadIdReducer(state = "1-fc21", action) {
+  if (action.type === "OPEN_THREAD") {
+    return action.newActiveThreadId;
+  } else {
+    return state;
+  }
+}
+
+function messagesReducer(state = [], action) {
   if (action.type === "ADD_MESSAGE") {
     const newMessage = {
       text: action.text,
       timestamp: Date.now(),
       id: uuid.v4(),
     };
-
-    const activeThread = state.threads.find((t) => t.id === action.threadId);
-    const newThread = {
-      ...activeThread,
-      messages: activeThread.messages.concat(newMessage),
-    };
-
-    return {
-      ...state,
-      threads: state.threads.map((t) => {
-        if (t.id !== action.threadId) return t;
-        return newThread;
-      }),
-    };
+    return state.concat(newMessage);
   } else if (action.type === "DELETE_MESSAGE") {
-    const activeThread = state.threads.find((t) =>
-      t.messages.find((m) => m.id === action.id)
-    );
-    const newThread = {
-      ...activeThread,
-      messages: activeThread.messages.filter((m) => m.id !== action.id),
-    };
-    return {
-      ...state,
-      threads: state.threads.map((t) => {
-        if (t !== activeThread) return t;
-        return newThread;
-      }),
-    };
-  } else if (action.type === "OPEN_THREAD") {
-    return { ...state, activeThreadId: action.newActiveThreadId };
+    return state.filter((m) => m.id !== action.id);
   } else {
     return state;
   }
 }
 
-const initialState = {
-  activeThreadId: "1-fc21",
-  threads: [
+function findActiveThread(state, action) {
+  switch (action.type) {
+    case "ADD_MESSAGE":
+      return state.find((t) => t.id === action.threadId);
+    case "DELETE_MESSAGE":
+      return state.find((t) => t.messages.find((m) => m.id === action.id));
+    default:
+      return null;
+  }
+}
+
+function threadsReducer(
+  state = [
     {
       id: "1-fc21",
       title: "Buzz Aldrin",
-      messages: [
-        {
-          text: "12 minutes to ignition",
-          timestamp: Date.now(),
-          id: uuid.v4(),
-        },
-      ],
+      messages: messagesReducer(undefined, {}),
     },
     {
       id: "2-be94",
       title: "Jónatan Lara",
-      messages: [],
+      messages: messagesReducer(undefined, {}),
     },
   ],
-};
+  action
+) {
+  switch (action.type) {
+    case "ADD_MESSAGE":
+    case "DELETE_MESSAGE":
+      const activeThread = findActiveThread(state, action);
+      const newThread = {
+        ...activeThread,
+        messages: messagesReducer(activeThread.messages, action),
+      };
 
-const store = createStore(reducer, initialState);
+      return state.map((t) => {
+        if (t !== activeThread) return t;
+        return newThread;
+      });
+    default:
+      return state;
+  }
+}
+
+const store = createStore(reducer);
 
 class App extends React.Component {
   componentDidMount() {
