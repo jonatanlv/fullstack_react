@@ -1,11 +1,26 @@
-import React from "react";
+import React, { useState } from "react";
 import { createStore, combineReducers } from "redux";
+import { Provider, connect } from "react-redux";
 import uuid from "uuid";
 
 const reducer = combineReducers({
   activeThreadId: activeThreadIdReducer,
   threads: threadsReducer,
 });
+
+const actionFactory = (type, ...argNames) => {
+  return (...argValues) => {
+    const result = { type };
+    for (let i = 0; i < argNames.length; i++) {
+      result[argNames[i]] = argValues[i];
+    }
+    return result;
+  };
+};
+
+const openThread = actionFactory("OPEN_THREAD", "newActiveThreadId");
+const addMessage = actionFactory("ADD_MESSAGE", "text", "threadId");
+const deleteMessage = actionFactory("DELETE_MESSAGE", "id");
 
 function activeThreadIdReducer(state = "1-fc21", action) {
   if (action.type === "OPEN_THREAD") {
@@ -77,117 +92,143 @@ function threadsReducer(
 const store = createStore(reducer);
 
 class App extends React.Component {
-  componentDidMount() {
-    store.subscribe(() => this.forceUpdate());
-  }
-
   render() {
-    const { activeThreadId, threads } = store.getState();
-    const activeThread = threads.find((t) => t.id === activeThreadId);
-
-    const tabs = threads.map((t) => ({
-      id: t.id,
-      title: t.title,
-      active: t.id === activeThreadId,
-    }));
-
     return (
       <div className="ui segment">
-        <ThreadTabs tabs={tabs} />
-        <Thread thread={activeThread} />
+        <ThreadTabs />
+        <ThreadDisplay />
       </div>
     );
   }
 }
 
-class ThreadTabs extends React.Component {
-  handleTabClick = (id) => {
-    store.dispatch({
-      type: "OPEN_THREAD",
-      newActiveThreadId: id,
-    });
-  };
+const WrappedApp = () => (
+  <Provider store={store}>
+    <App />
+  </Provider>
+);
 
-  render() {
-    const tabs = this.props.tabs.map((tab, index) => (
+const mapStateToTabsProps = ({ activeThreadId, threads }) => {
+  const tabs = threads.map((t) => ({
+    id: t.id,
+    title: t.title,
+    active: t.id === activeThreadId,
+    messageCount: t.messages.length,
+  }));
+
+  return { tabs };
+};
+
+const mapDispatchToTabsProps = (dispatch) => ({
+  tabClickHandler: (id) => dispatch(openThread(id)),
+});
+
+const Tabs = ({ tabs, tabClickHandler }) => (
+  <div className="ui top attached tabular menu">
+    {tabs.map((tab, index) => (
       <div
         key={index}
         className={`item ${tab.active ? "active" : ""}`}
-        onClick={() => this.handleTabClick(tab.id)}
+        onClick={() => tabClickHandler(tab.id)}
       >
         {tab.title}
+        <div className="ui horizontal label">{tab.messageCount}</div>
       </div>
-    ));
-    return <div className="ui top attached tabular menu">{tabs}</div>;
-  }
-}
+    ))}
+  </div>
+);
 
-class MessageInput extends React.Component {
-  state = {
-    value: "",
-  };
+const ThreadTabs = connect(mapStateToTabsProps, mapDispatchToTabsProps)(Tabs);
 
-  onChange = (e) => {
-    this.setState({
-      value: e.target.value,
-    });
-  };
+const TextFieldInput = ({ onInputHandler, buttonText = "Submit" }) => {
+  const [fieldValue, setFieldValue] = useState("");
 
-  handleSubmit = () => {
-    store.dispatch({
-      type: "ADD_MESSAGE",
-      text: this.state.value,
-      threadId: this.props.threadId,
-    });
-    this.setState({
-      value: "",
-    });
-  };
-
-  render() {
-    return (
-      <div className="ui input">
-        <input onChange={this.onChange} value={this.state.value} type="text" />
-        <button
-          onClick={this.handleSubmit}
-          className="ui primary button"
-          type="submit"
-        >
-          Submit
-        </button>
-      </div>
-    );
-  }
-}
-
-class Thread extends React.Component {
-  handleClick = (id, threadId) => {
-    store.dispatch({
-      type: "DELETE_MESSAGE",
-      id,
-    });
-  };
-
-  render() {
-    const messages = this.props.thread.messages.map((message) => (
-      <div
-        className="comment"
-        key={message.id}
-        onClick={() => this.handleClick(message.id, this.props.thread.id)}
+  return (
+    <div className="ui input">
+      <input
+        onChange={(e) => setFieldValue(e.target.value)}
+        value={fieldValue}
+        type="text"
+      />
+      <button
+        onClick={() => {
+          onInputHandler(fieldValue);
+          setFieldValue("");
+        }}
+        className="ui primary button"
+        type="submit"
       >
-        <div className="text">
-          {message.text}
-          <span className="metadata">@{message.timestamp}</span>
-        </div>
-      </div>
-    ));
-    return (
-      <div className="ui center aligned basic segment">
-        <div className="ui comments">{messages}</div>
-        <MessageInput threadId={this.props.thread.id} />
-      </div>
-    );
-  }
-}
+        {buttonText}
+      </button>
+    </div>
+  );
+};
 
-export default App;
+const mapStateToThreadProps = (state) => {
+  const { activeThreadId, threads } = state;
+  const thread = threads.find((t) => t.id === activeThreadId);
+  return {
+    thread,
+  };
+};
+
+const mapDispatchToThreadProps = (dispatch) => {
+  return {
+    onMessageClickHandler: (id) => {
+      dispatch(deleteMessage(id));
+    },
+    dispatch,
+  };
+};
+
+const mergeThreadProps = (stateProps, dispatchProps) => {
+  return {
+    ...stateProps,
+    onMessageClickHandler: dispatchProps.onMessageClickHandler,
+    newMessageHandler: (text) => {
+      dispatchProps.dispatch(addMessage(text, stateProps.thread.id));
+    },
+  };
+};
+
+const Thread = ({ thread, onMessageClickHandler, newMessageHandler }) => {
+  return (
+    <div className="ui center aligned basic segment">
+      <MessageList
+        messages={thread.messages}
+        onMessageClickHandler={onMessageClickHandler}
+      />
+      <TextFieldInput
+        onInputHandler={newMessageHandler}
+        buttonText="Add message"
+      />
+    </div>
+  );
+};
+
+const ThreadDisplay = connect(
+  mapStateToThreadProps,
+  mapDispatchToThreadProps,
+  mergeThreadProps
+)(Thread);
+
+const MessageList = ({ messages, onMessageClickHandler }) => {
+  return (
+    <div className="ui comments">
+      {messages.map((message) => (
+        <div
+          className="comment"
+          key={message.id}
+          onClick={() => onMessageClickHandler(message.id)}
+        >
+          <div className="text">
+            {message.text}
+            <span className="metadata">@{message.timestamp}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+export default WrappedApp;
